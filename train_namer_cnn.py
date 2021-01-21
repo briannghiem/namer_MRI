@@ -71,12 +71,35 @@ datestring = datetime.date.today().strftime("%Y-%m-%d")
 tmp_progress_filename = './convergence_curves/' + datestring + exp_name + 'progress'
 
 # load ground truth, training, and test data
-tmp_mat_data = sio.loadmat(data_fn)
-x_train = np.concatenate((tmp_mat_data['x_train_pt1'],tmp_mat_data['x_train_pt2']), axis=0)
-y_train = np.concatenate((tmp_mat_data['y_train_pt1'],tmp_mat_data['y_train_pt2']), axis=0)
-x_test = tmp_mat_data['x_test']
-y_test = tmp_mat_data['y_test']
-print("Data structures loaded.")
+tmd = sio.loadmat(data_fn) # temp mat data
+print("Loaded mat data.")
+
+x_test1 = tmd['x_test_pt1']
+x_test2 = tmd['x_test_pt2']
+y_test1 = tmd['y_test_pt1']
+y_test2 = tmd['y_test_pt2']
+x_test = np.concatenate((x_test1, x_test2), axis=0)
+y_test = np.concatenate((y_test1, y_test2), axis=0)
+print("Did test data concatenation.")
+
+x_train1 = tmd['x_train_pt1']
+x_train2 = tmd['x_train_pt2']
+x_train3 = tmd['x_train_pt3']
+x_train4 = tmd['x_train_pt4']
+x_train5 = tmd['x_train_pt5']
+x_train6 = tmd['x_train_pt6']
+x_train7 = tmd['x_train_pt7']
+y_train1 = tmd['y_train_pt1']
+y_train2 = tmd['y_train_pt2']
+y_train3 = tmd['y_train_pt3']
+y_train4 = tmd['y_train_pt4']
+y_train5 = tmd['y_train_pt5']
+y_train6 = tmd['y_train_pt6']
+y_train7 = tmd['y_train_pt7']
+x_train = np.concatenate((x_train1, x_train2, x_train3, x_train4, x_train5, x_train6, x_train7), axis=0)
+y_train = np.concatenate((y_train1, y_train2, y_train3, y_train4, y_train5, y_train6, y_train7), axis=0)
+print("Did training data concatenation.")
+
 
 # ------------------------------------------------------------------------------#
 #                                 setup cnn                                     #
