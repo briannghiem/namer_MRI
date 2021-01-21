@@ -19,11 +19,11 @@ addpath('./namer_data')
 
 exp_name = '_namer_example';
 niters = 20;
-gpu_str = '0';
+gpu_str = '0';  % select GPU to use
 data_fn = 'namer_ex_data.mat';
 motion_fn = 'subject_mt_example.mat';
 
-% cnn name and patch variables
+% select model and set patch variables
 cnn_model_name = 'namer_trained_model.h5';
 cnn_tmp_path = NAMER_path;
 patch_params.patch_sz = 51;
@@ -55,7 +55,6 @@ load(motion_fn)
 % will be corrected. Here we only do in-plane correction, so columns
 % corresponding to through plane translation and rotation are set to zero
 dM_in_matrix = ones(size(mt_traj));
-dM_in_matrix(1,:) = 0;
 dM_in_matrix(:,3:5) = 0;
 dM_in_indices = find(dM_in_matrix);
 
@@ -186,6 +185,9 @@ for ii = 1:niters
         tse_traj, U , nz_pxls , nz_pxls, [], [], kfilt, pad);
     fits_full_solve(ii) = fit_full_solve;
     
+    disp(['NAMER iteration ',num2str(ii),': fit = ',num2str(fit_full_solve),...
+        ' (fit0 = ',num2str(fit_corrupted),')']); disp(' ')
+    
     save(strcat(full_path_exp_str,num2str(ii),'.mat'),'fit_cnn',...
         'x_cnn_final','fit_mt_min', 'fit_full_solve','x_current',...
         'M_current')
@@ -204,8 +206,9 @@ mosaic(permute(x_current(:,end:-1:1),[2 1]),1,1,4,'x - NAMER output',[0 sc])
 figure(5); plot(mt_traj(:,[1,2,6])); hold on; plot(M_current(:,[1,2,6]),'k--')
 legend('PE mt true','RO mt true','rotation true',...
     'PE mt NAMER','RO mt NAMER','rotation NAMER')
-figure(6); plot(0:20,[fit_corrupted;fits_full_solve])
-title('data consistency convergence')
+figure(6); plot(0:niters,[fit_corrupted;fits_full_solve])
+title('data consistency convergence'); 
+xlabel('iteration'); ylabel ('data consistency % fit')
 
 
 %% save final workspace
