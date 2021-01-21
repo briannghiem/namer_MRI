@@ -1,4 +1,4 @@
-function [ fit_hf, x, pcg_out, k_fm] = mt_fit_fcn_v10( dM_in, dM_in_indices, Mn, Cfull, km, ...
+function [ fit, x, pcg_out, k_fm] = mt_fit_fcn_v10( dM_in, dM_in_indices, Mn, Cfull, km, ...
     tse_traj, U , tar_pxls , full_msk_pxls, xprev, exp_str, kfilter,pad)
 
 
@@ -20,68 +20,67 @@ Ms = Mn + dM_in_all_mtx;
 
 %% call pcg
 
-xs_v_f = xprev(fixed_pxls);
-Afxf = A_v10(xs_v_f,U,Cfull,tse_traj,Ms,fixed_pxls,pad);
+% x vector "fixed" pixels (not being updated in pcg)
+x_v_f = xprev(fixed_pxls);
+
+% find RHS (right hand side) for normal equations
+Afxf = A_v10(x_v_f,U,Cfull,tse_traj,Ms,fixed_pxls,pad);
 AtsAfxf = Astar_v10(Afxf,U,Cfull,tse_traj,Ms,tar_pxls,pad);
 RHS = Astar_v10(km,U,Cfull,tse_traj,Ms,tar_pxls,pad) - AtsAfxf;
 
+% find x_v_t (x vector "targetted" pixels)
 if (~isempty(xprev))
-    [xs_v_t, f, rr, it] = pcg(@(x)...
+    [x_v_t, f, rr, it] = pcg(@(x)...
         LHS_v10(x,U,Cfull,tse_traj,Ms,lambda,tar_pxls,pad), RHS, 1e-3, iters, [], [],...
         reshape(xprev(tar_pxls),numel(tar_pxls),1));
 else
-    [xs_v_t, f, rr, it] = pcg(@(x)...
+    [x_v_t, f, rr, it] = pcg(@(x)...
         LHS_v10(x,U,Cfull,tse_traj,Ms,lambda,tar_pxls,pad), RHS, 1e-3, iters);
 end
 pcg_out = [f, rr, it];
 
-%% Evaluate Forward Model                             
+%% Re-evaluate Forward Model with new x
 
-xs_v_vol = zeros(nlin,ncol,nsli);
-xs_v_vol(fixed_pxls) = xs_v_f; xs_v_vol(tar_pxls) = xs_v_t;
-xs_v_all = xs_v_vol(full_msk_pxls);
+% combine x_fixed and x_targetted into one vector
+x_vol = zeros(nlin,ncol,nsli);
+x_vol(fixed_pxls) = x_v_f; x_vol(tar_pxls) = x_v_t;
+x_v_all = x_vol(full_msk_pxls);
 
+% shift x based on zero-padding used
 pxl_per_sli = numel(full_msk_pxls)/nsli;
-xs_v = zeros(numel(full_msk_pxls),1);
-xs_v(pad*pxl_per_sli+1:end-pad*pxl_per_sli) = xs_v_all(pad*pxl_per_sli+1:end-pad*pxl_per_sli);
+x_v = zeros(numel(full_msk_pxls),1);
+x_v(pad*pxl_per_sli+1:end-pad*pxl_per_sli) = x_v_all(pad*pxl_per_sli+1:end-pad*pxl_per_sli);
 
-ks = A_v10(xs_v,U,Cfull,tse_traj,Ms,full_msk_pxls,pad);
-
-k_fm = ks;
+% call forward model
+k_fm = A_v10(x_v,U,Cfull,tse_traj,Ms,full_msk_pxls,pad);
 
 % weight the kspace data
-km_hf = km .* kfilter;
-ks_hf = ks .* kfilter;
+km_filt = km .* kfilter;
+k_fm_filt = k_fm .* kfilter;
 
-fit_hf = norm(ks_hf(:)-km_hf(:))/norm(km_hf(:));
+% calculate data consistency L2 norm
+fit_filt = norm(k_fm_filt(:)-km_filt(:))/norm(km_filt(:));
 
+fit = fit_filt;
+
+% save intermediate steps of optimization if and experiment string is
+% passed into the function
 if (~isempty(exp_str))
-    save(strcat(exp_str,'_tmp.mat'),'Mn','dM_in','fit_hr')
+    save(strcat(exp_str,'_tmp.mat'),'Mn','dM_in','fit')
 end
 
 %% put x back in full image matrix
 x = zeros(nlin,ncol,nsli);
-x(full_msk_pxls) = xs_v;
+x(full_msk_pxls) = x_v;
 
-
-%% update tamer_vars
-global tamer_vars
-if isfield(tamer_vars,'track_opt')
-    if tamer_vars.track_opt == true
-        tamer_vars.nobjfnc_calls = tamer_vars.nobjfnc_calls + 1;
-        tamer_vars.pcg_steps = [tamer_vars.pcg_steps, it];
-        tamer_vars.ntotal_pcg_steps = tamer_vars.ntotal_pcg_steps + it;
-        tamer_vars.fit_vec = [tamer_vars.fit_vec, fit_hf];
-    end
-end
 end
 
 
-%%           LHS function                                        %%%%%%%%%%
+%% "Left Hand Side" fucntion, i.e. A*A + Tik in normal equations     %%%%%%%%%%
 function [output] = LHS_v10(x,U,Cfull,tse_traj,Ms,lambda,nz_pxls,pad)
 
 AsAx = AsA_v10(x,U,Cfull,tse_traj,Ms,nz_pxls,pad);
-output = AsAx + lambda;
+output = AsAx + lambda*x;
 
 end
 

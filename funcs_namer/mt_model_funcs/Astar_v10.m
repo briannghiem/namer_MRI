@@ -15,8 +15,8 @@ end
 % This will combine all of
 % the lines from a given slice that had the same motion into one shot (i.e.
 % if tse_traj was originally 17x11 but the first two shots had the same
-% motion parameters (and the rest were unique) the row element of the cell
-% would contain a 22x1 vector with the lines from shots 1 and 2. The, the
+% motion parameters (and the rest were unique) the first element of the cell
+% would contain a 22x1 vector with the lines from shots 1 and 2. The
 % next 15 elements of the cell would contain 11x1 vectors with the lines
 % from the rest of the shots.
 tse_traj_cell = tse_traj_to_compact_cell(tse_traj,Ms);

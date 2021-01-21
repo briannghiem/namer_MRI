@@ -34,8 +34,9 @@ tls = size(tse_traj,1);
 FMx = zeros(size(U));
 FenCx_mtx = zeros(nlin,ncol,ncha,tls);
 
-
-kp_vec = linspace(-pi,pi-2*pi*(1/nsli),nsli);
+% create phase matrices which will be scaled by the magnitude of the motion
+% parameters
+kp_vec = linspace(-pi,pi-2*pi*(1/nsli),nsli); 
 kr_vec = linspace(-pi,pi-2*pi*(1/nlin),nlin); kr_mtx = repmat(kr_vec.',1,ncol);
 kc_vec = linspace(-pi,pi-2*pi*(1/ncol),ncol); kc_mtx = repmat(kc_vec,nlin,1);
 kspace_2d = cat(3,kr_mtx, kc_mtx);
@@ -43,7 +44,8 @@ kspace_2d = cat(3,kr_mtx, kc_mtx);
 dx_v = Ms(:,1);dy_v = Ms(:,2);dz_v = Ms(:,3);
 yaw_v = Ms(:,4); pitch_v = Ms(:,5); roll_v = Ms(:,6);
 
-
+% find sensitivity maps used for each shot (i.e. which slice is being
+% excited at that shot)
 Cfull2 = zeros(nlin,ncol,tls,ncha);
 for t = 1:tls
     tmp_sli = tse_traj(t,1) + pad;
@@ -178,9 +180,7 @@ else  %%% parallel version
     
 end  % end shot loop
 
-
-
-%%% update 18-12-18
+% fill simulated kspace with the proper slice, lines, and motion for that shot 
 for t = 1:size(tse_traj_all,1)
     tmp_sli = tse_traj_all(t,1) + pad;
     tmp_tse_traj = tse_traj_mtx_all(t,:);

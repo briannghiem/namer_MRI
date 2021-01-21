@@ -1,6 +1,6 @@
-function [ fit_hf, ks_hf ] = mt_fm_v10( dM_in, dM_in_indices, Mn, Cfull, km, ...
+function [ fit, k_fm_filt ] = mt_fm_v10( dM_in, dM_in_indices, Mn, Cfull, km, ...
     tse_traj, U , full_msk_pxls, xprev, exp_str, kfilter,pad)
-
+% v10 of the motion forward model
 
 %%                             Precomputations                           %%
 
@@ -11,13 +11,16 @@ dM_in_all_mtx = reshape(dM_in_all, size(Mn));
 Ms = Mn + dM_in_all_mtx;
 
 %% evaluate forward model
-ks = A_v10(xprev(full_msk_pxls),U,Cfull,tse_traj,Ms,full_msk_pxls,pad);
+k_fm = A_v10(xprev(full_msk_pxls),U,Cfull,tse_traj,Ms,full_msk_pxls,pad);
 
 % weight the kspace data
-km_hf = km .* kfilter;
-ks_hf = ks .* kfilter;
+km_filt = km .* kfilter;
+k_fm_filt = k_fm .* kfilter;
 
-fit_hf = norm(ks_hf(:)-km_hf(:))/norm(km_hf(:));
+% apply k-space weighting filter
+fit_filt = norm(k_fm_filt(:)-km_filt(:))/norm(km_filt(:));
+
+fit = fit_filt;
 
 if (~isempty(exp_str))
     save(strcat(exp_str,'_fixed_hr_tmp.mat'),'Mn','dM_in','fit')
