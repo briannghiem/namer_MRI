@@ -89,9 +89,6 @@ x_test1 = tmd['x_test_pt1']
 x_test2 = tmd['x_test_pt2']
 y_test1 = tmd['y_test_pt1']
 y_test2 = tmd['y_test_pt2']
-x_test = np.concatenate((x_test1, x_test2), axis=0)
-y_test = np.concatenate((y_test1, y_test2), axis=0)
-print("Did test data concatenation.")
 
 x_train1 = tmd['x_train_pt1']
 x_train2 = tmd['x_train_pt2']
@@ -107,8 +104,19 @@ y_train4 = tmd['y_train_pt4']
 y_train5 = tmd['y_train_pt5']
 y_train6 = tmd['y_train_pt6']
 y_train7 = tmd['y_train_pt7']
+
+del tmd
+
+x_test = np.concatenate((x_test1, x_test2), axis=0)
+del x_test1, x_test2
+y_test = np.concatenate((y_test1, y_test2), axis=0)
+del y_test1, y_test2
+print("Did test data concatenation.")
+
 x_train = np.concatenate((x_train1, x_train2, x_train3, x_train4, x_train5, x_train6, x_train7), axis=0)
+del x_train1, x_train2, x_train3, x_train4, x_train5, x_train6, x_train7
 y_train = np.concatenate((y_train1, y_train2, y_train3, y_train4, y_train5, y_train6, y_train7), axis=0)
+del y_train1, y_train2, y_train3, y_train4, y_train5, y_train6, y_train7
 print("Did training data concatenation.")
 
 
@@ -117,6 +125,10 @@ print("Did training data concatenation.")
 # ------------------------------------------------------------------------------#
 
 model = Sequential()
+
+''' UHN HPC Raise Msg
+2021-01-22 01:38:09.863642: I tensorflow/core/common_runtime/process_util.cc:146] Creating new thread pool with default inter op setting: 2. Tune using inter_op_parallelism_threads for best performance.
+'''
 
 # layer 1
 model.add(Conv2D(output_size, kernel_size, input_shape=(patch_size, patch_size, 2), padding='same'))
