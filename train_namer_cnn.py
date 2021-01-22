@@ -8,6 +8,7 @@
 # import libraries
 # ------------------------------------------------------------------------------
 import os
+import errno
 import scipy.io as sio
 import numpy as np
 import keras
@@ -28,6 +29,9 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 # class initialization
 # ------------------------------------------------------------------------------
 class SaveNetworkProgress(keras.callbacks.Callback):
+    def __init__(self, dirname):
+        self.dirname = dirname
+        #
     def on_train_begin(self, logs={}):
         self.epoch_ind = []
         self.losses = []
@@ -37,8 +41,18 @@ class SaveNetworkProgress(keras.callbacks.Callback):
         self.epoch_ind.append(epoch)
         self.losses.append(logs.get('loss'))
         self.val_losses.append(logs.get('val_loss'))
-        sio.savemat(tmp_progress_filename, dict([('val_losses', self.val_losses), ('losses',self.losses), ('epoch_ind', self.epoch_ind)]))
+        sio.savemat(self.dirname, dict([('val_losses', self.val_losses), \
+                                        ('losses',self.losses), \
+                                        ('epoch_ind', self.epoch_ind)]))
 
+def init_dir(dirname):
+    '''Create new directory for saving outputs'''
+    try:
+        os.mkdir(dirname)
+    except OSError as exc:
+        if exc.errno != errno.EEXIST:
+            raise
+        pass
 
 # ------------------------------------------------------------------------------
 # script initialization
@@ -50,12 +64,20 @@ config.gpu_options.allow_growth=True
 set_session(tf.compat.v1.Session(config=config))
 
 '''UHN HPC Msg Raised
-2021-01-22 01:03:18.686798: I tensorflow/core/platform/cpu_feature_guard.cc:142] This Tenso                                                                                              rFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN)to use the follow                                                                                              ing CPU instructions in performance-critical operations:  SSE4.1 SSE4.2 AVX AVX2 AVX512F FM                                                                                              A
+2021-01-22 01:03:18.686798: I tensorflow/core/platform/cpu_feature_guard.cc:142].
+This TensorFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN)
+use the following CPU instructions in performance-critical operations:SSE4.1 SSE4.2 AVX AVX2 AVX512F FMA
 To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.
-2021-01-22 01:03:18.809414: I tensorflow/core/platform/profile_utils/cpu_utils.cc:104] CPU                                                                                               Frequency: 2095074999 Hz
-2021-01-22 01:03:18.813278: I tensorflow/compiler/xla/service/service.cc:168] XLA service 0                                                                                              x560d7d628f00 initialized for platform Host (this does not guarantee that XLA will be used)                                                                                              . Devices:
-2021-01-22 01:03:18.813317: I tensorflow/compiler/xla/service/service.cc:176]   StreamExecu                                                                                              tor device (0): Host, Default Version
-2021-01-22 01:03:18.813571: I tensorflow/core/common_runtime/process_util.cc:146] Creating                                                                                               new thread pool with default inter op setting: 2. Tune using inter_op_parallelism_threads f                                                                                              or best performance.
+2021-01-22 01:03:18.809414: I tensorflow/core/platform/profile_utils/cpu_utils.cc:104]
+CPU Frequency: 2095074999 Hz
+2021-01-22 01:03:18.813278: I tensorflow/compiler/xla/service/service.cc:168] XLA service
+0x560d7d628f00 initialized for platform Host (this does not guarantee that XLA will be used).
+Devices:
+2021-01-22 01:03:18.813317: I tensorflow/compiler/xla/service/service.cc:176]
+StreamExecutor device (0): Host, Default Version
+2021-01-22 01:03:18.813571: I tensorflow/core/common_runtime/process_util.cc:146]
+Creating new thread pool with default inter op setting: 2.
+Tune using inter_op_parallelism_threads for best performance.
 '''
 
 # intialize hardcoded variables
@@ -67,19 +89,21 @@ patch_size = 51
 nepochs = 40
 nbatch = 100
 
-learning_rate = .0001
+learning_rate = .0001 #for Adam optimizer
 
-exp_name = r'_n100_lr0001_'
+# Setting up paths
+exp_name = r'_n100_lr0001_' #bbatch & learning rate
 main_path = r'/cluster/projects/uludag/Brian'
 data_path = main_path + r'/data/namer'
 save_path = main_path + r'/moco-sigpy/namer'
-data_fn = data_path + r'/training_data.mat'  # email mhaskell@fas.harvard.edu for training data
+cc_path = save_path + r'/convergence_curves'; init_dir(cc_path)
+mod_path = save_path + r'/models'; init_dir(mod_path)
+modwt_path = save_path + r'/model_weights'; init_dir(modwt_path)
 
 # initialize paths and filenames (fn abbreviation) and variable names (vn abbreviation)
-# cur_path = os.getcwd()
-# data_path = cur_path
+data_fn = data_path + r'/training_data.mat'  # email mhaskell@fas.harvard.edu for training data
 datestring = datetime.date.today().strftime("%Y-%m-%d")
-tmp_progress_filename = './convergence_curves/' + datestring + exp_name + 'progress'
+tmp_progress_filename = cc_path + datestring + exp_name + r'progress'
 
 # load ground truth, training, and test data
 tmd = sio.loadmat(data_fn) # temp mat data
@@ -127,7 +151,9 @@ print("Did training data concatenation.")
 model = Sequential()
 
 ''' UHN HPC Raise Msg
-2021-01-22 01:38:09.863642: I tensorflow/core/common_runtime/process_util.cc:146] Creating new thread pool with default inter op setting: 2. Tune using inter_op_parallelism_threads for best performance.
+2021-01-22 01:38:09.863642: I tensorflow/core/common_runtime/process_util.cc:146]
+Creating new thread pool with default inter op setting: 2.
+Tune using inter_op_parallelism_threads for best performance.
 '''
 
 # layer 1
@@ -146,14 +172,14 @@ model.add(Conv2D(2, kernel_size, padding='same'))
 adam_opt = Adam(lr=learning_rate, beta_1=0.9, beta_2=0.999, epsilon=1e-08, decay=0.0)
 model.compile(loss='mse', optimizer=adam_opt, metrics=['accuracy'])
 model.summary()
-model.save(save_path + '/models/' + datestring + exp_name + 'init_model.h5')
+model.save(mod_path + datestring + exp_name + 'init_model.h5') #NB. mkdir models
 
 # ------------------------------------------------------------------------------
 # % train cnn
 # ------------------------------------------------------------------------------
 
-save_progress = SaveNetworkProgress()
-filepath = save_path + '/model_weights/' + datestring + exp_name + 'weights-{epoch:02d}.hdf5'
+save_progress = SaveNetworkProgress(tmp_progress_filename)
+filepath = modwt_path + datestring + exp_name + 'weights-{epoch:02d}.hdf5'
 checkpoint = ModelCheckpoint(filepath, monitor='val_loss', verbose=1, save_best_only=True, mode='min')
 callbacks_list = [checkpoint, save_progress]
 
@@ -161,4 +187,4 @@ hist = model.fit(x_train, y_train, epochs=nepochs, callbacks=callbacks_list, bat
                  validation_data=(x_test, y_test))
 
 # save
-model.save(save_path + '/models/' + datestring + exp_name + 'trained_model.h5')
+model.save(mod_path + datestring + exp_name + 'trained_model.h5')
