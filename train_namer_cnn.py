@@ -16,7 +16,7 @@ from keras.models import Sequential
 from keras.optimizers import Adam
 import datetime
 from keras.callbacks import ModelCheckpoint
-import tensorflow
+import tensorflow as tf
 from tensorflow.python.keras.backend import set_session
 
 
@@ -32,12 +32,11 @@ class SaveNetworkProgress(keras.callbacks.Callback):
         self.epoch_ind = []
         self.losses = []
         self.val_losses = []
-
+        #
     def on_epoch_end(self, epoch, logs={}):
         self.epoch_ind.append(epoch)
         self.losses.append(logs.get('loss'))
         self.val_losses.append(logs.get('val_loss'))
-
         sio.savemat(tmp_progress_filename, dict([('val_losses', self.val_losses), ('losses',self.losses), ('epoch_ind', self.epoch_ind)]))
 
 
@@ -46,9 +45,18 @@ class SaveNetworkProgress(keras.callbacks.Callback):
 # ------------------------------------------------------------------------------
 
 # set tensorflow environment to limit GPU memory usage, and select GPU
-config = tensorflow.ConfigProto()
-config.gpu_options.allow_growth = True
-set_session(tensorflow.Session(config=config))
+config = tf.compat.v1.ConfigProto()
+config.gpu_options.allow_growth=True
+set_session(tf.compat.v1.Session(config=config))
+
+'''UHN HPC Msg Raised
+2021-01-22 01:03:18.686798: I tensorflow/core/platform/cpu_feature_guard.cc:142] This Tenso                                                                                              rFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN)to use the follow                                                                                              ing CPU instructions in performance-critical operations:  SSE4.1 SSE4.2 AVX AVX2 AVX512F FM                                                                                              A
+To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.
+2021-01-22 01:03:18.809414: I tensorflow/core/platform/profile_utils/cpu_utils.cc:104] CPU                                                                                               Frequency: 2095074999 Hz
+2021-01-22 01:03:18.813278: I tensorflow/compiler/xla/service/service.cc:168] XLA service 0                                                                                              x560d7d628f00 initialized for platform Host (this does not guarantee that XLA will be used)                                                                                              . Devices:
+2021-01-22 01:03:18.813317: I tensorflow/compiler/xla/service/service.cc:176]   StreamExecu                                                                                              tor device (0): Host, Default Version
+2021-01-22 01:03:18.813571: I tensorflow/core/common_runtime/process_util.cc:146] Creating                                                                                               new thread pool with default inter op setting: 2. Tune using inter_op_parallelism_threads f                                                                                              or best performance.
+'''
 
 # intialize hardcoded variables
 kernel_size = [3, 3]
@@ -65,7 +73,7 @@ exp_name = r'_n100_lr0001_'
 main_path = r'/cluster/projects/uludag/Brian'
 data_path = main_path + r'/data/namer'
 save_path = main_path + r'/moco-sigpy/namer'
-data_fn = dat_path + r'/training_data.mat'  # email mhaskell@fas.harvard.edu for training data
+data_fn = data_path + r'/training_data.mat'  # email mhaskell@fas.harvard.edu for training data
 
 # initialize paths and filenames (fn abbreviation) and variable names (vn abbreviation)
 # cur_path = os.getcwd()
