@@ -17,7 +17,7 @@ from keras.optimizers import Adam
 import datetime
 from keras.callbacks import ModelCheckpoint
 import tensorflow
-from keras.backend.tensorflow_backend import set_session
+from tensorflow.python.keras.backend import set_session
 
 
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
