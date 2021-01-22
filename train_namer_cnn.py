@@ -57,16 +57,19 @@ num_layers = 27
 patch_size = 51
 
 nepochs = 40
-nbatch = 100 
+nbatch = 100
 
-learning_rate = .0001 
+learning_rate = .0001
 
-exp_name = '_n100_lr0001_'
-data_fn = 'training_data.mat'  # email mhaskell@fas.harvard.edu for training data
+exp_name = r'_n100_lr0001_'
+main_path = r'/cluster/projects/uludag/Brian'
+data_path = main_path + r'/data/namer'
+save_path = main_path + r'/moco-sigpy/namer'
+data_fn = dat_path + r'/training_data.mat'  # email mhaskell@fas.harvard.edu for training data
 
 # initialize paths and filenames (fn abbreviation) and variable names (vn abbreviation)
-cur_path = os.getcwd()
-data_path = cur_path
+# cur_path = os.getcwd()
+# data_path = cur_path
 datestring = datetime.date.today().strftime("%Y-%m-%d")
 tmp_progress_filename = './convergence_curves/' + datestring + exp_name + 'progress'
 
@@ -123,14 +126,14 @@ model.add(Conv2D(2, kernel_size, padding='same'))
 adam_opt = Adam(lr=learning_rate, beta_1=0.9, beta_2=0.999, epsilon=1e-08, decay=0.0)
 model.compile(loss='mse', optimizer=adam_opt, metrics=['accuracy'])
 model.summary()
-model.save(cur_path + '/models/' + datestring + exp_name + 'init_model.h5')
+model.save(save_path + '/models/' + datestring + exp_name + 'init_model.h5')
 
 # ------------------------------------------------------------------------------
 # % train cnn
 # ------------------------------------------------------------------------------
 
 save_progress = SaveNetworkProgress()
-filepath = cur_path + '/model_weights/' + datestring + exp_name + 'weights-{epoch:02d}.hdf5'
+filepath = save_path + '/model_weights/' + datestring + exp_name + 'weights-{epoch:02d}.hdf5'
 checkpoint = ModelCheckpoint(filepath, monitor='val_loss', verbose=1, save_best_only=True, mode='min')
 callbacks_list = [checkpoint, save_progress]
 
@@ -138,7 +141,4 @@ hist = model.fit(x_train, y_train, epochs=nepochs, callbacks=callbacks_list, bat
                  validation_data=(x_test, y_test))
 
 # save
-model.save(cur_path + '/models/' + datestring + exp_name + 'trained_model.h5')
-
-
-
+model.save(save_path + '/models/' + datestring + exp_name + 'trained_model.h5')
