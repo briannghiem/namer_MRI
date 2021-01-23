@@ -102,7 +102,7 @@ modwt_path = save_path + r'/model_weights'; init_dir(modwt_path)
 
 # initialize paths and filenames (fn abbreviation) and variable names (vn abbreviation)
 data_fn = data_path + r'/training_data.mat'  # email mhaskell@fas.harvard.edu for training data
-datestring = datetime.date.today().strftime("%Y-%m-%d")
+datestring = r'/' + datetime.date.today().strftime("%Y-%m-%d")
 tmp_progress_filename = cc_path + datestring + exp_name + r'progress'
 
 # load ground truth, training, and test data
