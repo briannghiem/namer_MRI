@@ -38,6 +38,7 @@ class SaveNetworkProgress(keras.callbacks.Callback):
         self.val_losses = []
         #
     def on_epoch_end(self, epoch, logs={}):
+        print("Finished Epoch {}".format(epoch))
         self.epoch_ind.append(epoch)
         self.losses.append(logs.get('loss'))
         self.val_losses.append(logs.get('val_loss'))
@@ -128,7 +129,8 @@ print("Did training data concatenation.")
 # ------------------------------------------------------------------------------#
 #                                 setup cnn                                     #
 # ------------------------------------------------------------------------------#
-if len(os.listdir(mod_path)) == 0: #if output dir empty
+if len(os.listdir(modwt_path)) == 0: #if output dir empty
+    print("Initialize Model")
     #Init CNN model
     model = Sequential()
     #
@@ -151,9 +153,10 @@ if len(os.listdir(mod_path)) == 0: #if output dir empty
     init_epoch = 0
     #
 else: #if loading model continued training
-    fnames = os.listdir(mod_path)
+    print("Resume Model Training")
+    fnames = os.listdir(modwt_path)
     # Load checkpoint
-    model = load_model(mod_path + r'/' + fnames[-1]) #load most recent checkpt
+    model = load_model(modwt_path + r'/' + fnames[-1]) #load most recent checkpt
     # Finding the epoch index from which we are resuming
     init_epoch = len(os.listdir(modwt_path)) + 1 ##NB. quick fix, not robust!!
 
