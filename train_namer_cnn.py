@@ -13,7 +13,7 @@ import scipy.io as sio
 import numpy as np
 import keras
 from keras.layers import Conv2D, Activation, BatchNormalization
-from keras.models import Sequential
+from keras.models import Sequential, load_model
 from keras.optimizers import Adam
 import datetime
 from keras.callbacks import ModelCheckpoint
@@ -63,23 +63,6 @@ config = tf.compat.v1.ConfigProto()
 config.gpu_options.allow_growth=True
 set_session(tf.compat.v1.Session(config=config))
 
-'''UHN HPC Msg Raised
-2021-01-22 01:03:18.686798: I tensorflow/core/platform/cpu_feature_guard.cc:142].
-This TensorFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN)
-use the following CPU instructions in performance-critical operations:SSE4.1 SSE4.2 AVX AVX2 AVX512F FMA
-To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.
-2021-01-22 01:03:18.809414: I tensorflow/core/platform/profile_utils/cpu_utils.cc:104]
-CPU Frequency: 2095074999 Hz
-2021-01-22 01:03:18.813278: I tensorflow/compiler/xla/service/service.cc:168] XLA service
-0x560d7d628f00 initialized for platform Host (this does not guarantee that XLA will be used).
-Devices:
-2021-01-22 01:03:18.813317: I tensorflow/compiler/xla/service/service.cc:176]
-StreamExecutor device (0): Host, Default Version
-2021-01-22 01:03:18.813571: I tensorflow/core/common_runtime/process_util.cc:146]
-Creating new thread pool with default inter op setting: 2.
-Tune using inter_op_parallelism_threads for best performance.
-'''
-
 # intialize hardcoded variables
 kernel_size = [3, 3]
 output_size = 64
@@ -102,7 +85,7 @@ modwt_path = save_path + r'/model_weights'; init_dir(modwt_path)
 
 # initialize paths and filenames (fn abbreviation) and variable names (vn abbreviation)
 data_fn = data_path + r'/training_data.mat'  # email mhaskell@fas.harvard.edu for training data
-datestring = r'/' + datetime.date.today().strftime("%Y-%m-%d")
+datestring = r'/model_weights' + datetime.date.today().strftime("%Y-%m-%d")
 tmp_progress_filename = cc_path + datestring + exp_name + r'progress'
 
 # load ground truth, training, and test data
@@ -128,7 +111,6 @@ y_train4 = tmd['y_train_pt4']
 y_train5 = tmd['y_train_pt5']
 y_train6 = tmd['y_train_pt6']
 y_train7 = tmd['y_train_pt7']
-
 del tmd
 
 x_test = np.concatenate((x_test1, x_test2), axis=0)
@@ -143,36 +125,37 @@ y_train = np.concatenate((y_train1, y_train2, y_train3, y_train4, y_train5, y_tr
 del y_train1, y_train2, y_train3, y_train4, y_train5, y_train6, y_train7
 print("Did training data concatenation.")
 
-
 # ------------------------------------------------------------------------------#
 #                                 setup cnn                                     #
 # ------------------------------------------------------------------------------#
-
-model = Sequential()
-
-''' UHN HPC Raise Msg
-2021-01-22 01:38:09.863642: I tensorflow/core/common_runtime/process_util.cc:146]
-Creating new thread pool with default inter op setting: 2.
-Tune using inter_op_parallelism_threads for best performance.
-'''
-
-# layer 1
-model.add(Conv2D(output_size, kernel_size, input_shape=(patch_size, patch_size, 2), padding='same'))
-model.add(Activation('relu'))
-
-# mid layers
-for layers in range(1, num_layers - 1):
-    model.add(Conv2D(output_size, kernel_size, padding='same'))
-    model.add(BatchNormalization())
+if len(os.listdir(mod_path)) == 0: #if output dir empty
+    #Init CNN model
+    model = Sequential()
+    #
+    # layer 1
+    model.add(Conv2D(output_size, kernel_size, input_shape=(patch_size, patch_size, 2), padding='same'))
     model.add(Activation('relu'))
-
-# last layer
-model.add(Conv2D(2, kernel_size, padding='same'))
-
-adam_opt = Adam(lr=learning_rate, beta_1=0.9, beta_2=0.999, epsilon=1e-08, decay=0.0)
-model.compile(loss='mse', optimizer=adam_opt, metrics=['accuracy'])
-model.summary()
-model.save(mod_path + datestring + exp_name + 'init_model.h5') #NB. mkdir models
+    #
+    # mid layers
+    for layers in range(1, num_layers - 1):
+        model.add(Conv2D(output_size, kernel_size, padding='same'))
+        model.add(BatchNormalization())
+        model.add(Activation('relu'))
+        #
+    # last layer
+    model.add(Conv2D(2, kernel_size, padding='same'))
+    adam_opt = Adam(lr=learning_rate, beta_1=0.9, beta_2=0.999, epsilon=1e-08, decay=0.0)
+    model.compile(loss='mse', optimizer=adam_opt, metrics=['accuracy'])
+    model.summary()
+    model.save(mod_path + datestring + exp_name + 'init_model.h5') #NB. mkdir models
+    init_epoch = 0
+    #
+else: #if loading model continued training
+    fnames = os.listdir(mod_path)
+    # Load checkpoint
+    model = load_model(mod_path + r'/' + fnames[-1]) #load most recent checkpt
+    # Finding the epoch index from which we are resuming
+    init_epoch = len(os.listdir(modwt_path)) + 1 ##NB. quick fix, not robust!!
 
 # ------------------------------------------------------------------------------
 # % train cnn
@@ -184,7 +167,7 @@ checkpoint = ModelCheckpoint(filepath, monitor='val_loss', verbose=1, save_best_
 callbacks_list = [checkpoint, save_progress]
 
 hist = model.fit(x_train, y_train, epochs=nepochs, callbacks=callbacks_list, batch_size=nbatch, shuffle=True,
-                 validation_data=(x_test, y_test))
+                 validation_data=(x_test, y_test), initial_epoch = init_epoch)
 
 # save
 model.save(mod_path + datestring + exp_name + 'trained_model.h5')
