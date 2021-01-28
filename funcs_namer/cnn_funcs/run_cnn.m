@@ -22,24 +22,31 @@ py_input_filename = patches_full_fn;
 py_input_var = 'x_test';
 py_output_filename = [cnn_tmp_path, output_filename];
 py_out_var = 'x_test_output';
-py_sc_name = 'run_namer_cnn.py ';
+% py_sc_name = 'run_namer_cnn.py ';
+py_sc_name = 'run_namer_cnn';
 model_filename = [cnn_tmp_path, cnn_model_name];
 
 % boolean to decided if you want to see python output
 print_output = true;
 
 % create string to call python script with input and output variable names
-system_command_str = ['python ', py_script_path, py_sc_name, ...
-    py_input_filename, ' ', py_input_var, ' ', ...
-    py_output_filename, ' ', py_out_var, ' ', ...
-    model_filename, ' ', gpu_str];
+% system_command_str = ['python ', py_script_path, py_sc_name, ...
+%     py_input_filename, ' ', py_input_var, ' ', ...
+%     py_output_filename, ' ', py_out_var, ' ', ...
+%     model_filename, ' ', gpu_str];
+
+py_var = {py_input_filename, py_input_var, py_output_filename, ...
+          py_out_var, model_filename, gpu_str}
 
 % call python script
 py_runtime_0 = tic;
+py_func = py.importlib.import_module(py_sc_name)
 if print_output
-    sys_status = system(system_command_str);
+    % sys_status = system(system_command_str);
+    sys_status = py_func.run(py_var)
 else
-    [sys_status, ~] = system(system_command_str);
+    % [sys_status, ~] = system(system_command_str);
+    [sys_status, ~] = py_func.run(py_var)
 end
 py_runtime = toc(py_runtime_0);
 
@@ -55,5 +62,5 @@ artifact_image = sewpatches(patches_out,output_sz, patch_params.patch_sz, patch_
 x_cnn = x_in-artifact_image;
 
 x_cnn = x_cnn * im_scale;
-    
+
 end
