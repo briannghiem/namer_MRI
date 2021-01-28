@@ -12,11 +12,11 @@ import errno
 import scipy.io as sio
 import numpy as np
 import keras
-from keras.layers import Conv2D, Activation, BatchNormalization
-from keras.models import Sequential, load_model
-from keras.optimizers import Adam
+from tensorflow.keras.layers import Conv2D, Activation, BatchNormalization
+from tensorflow.keras.models import Sequential, load_model
+from tensorflow.keras.optimizers import Adam
 import datetime
-from keras.callbacks import ModelCheckpoint
+from tensorflow.keras.callbacks import ModelCheckpoint
 import tensorflow as tf
 from tensorflow.python.keras.backend import set_session
 
@@ -80,9 +80,9 @@ exp_name = r'_n100_lr0001_' #bbatch & learning rate
 main_path = r'/cluster/projects/uludag/Brian'
 data_path = main_path + r'/data/namer'
 save_path = main_path + r'/moco-sigpy/namer'
-cc_path = save_path + r'/convergence_curves'; init_dir(cc_path)
-mod_path = save_path + r'/models'; init_dir(mod_path)
-modwt_path = save_path + r'/model_weights'; init_dir(modwt_path)
+cc_path = save_path + r'/convergence_curves2'; init_dir(cc_path)
+mod_path = save_path + r'/models2'; init_dir(mod_path)
+modwt_path = save_path + r'/model_weights2'; init_dir(modwt_path)
 
 # initialize paths and filenames (fn abbreviation) and variable names (vn abbreviation)
 data_fn = data_path + r'/training_data.mat'  # email mhaskell@fas.harvard.edu for training data
@@ -166,7 +166,7 @@ else: #if loading model continued training
 
 save_progress = SaveNetworkProgress(tmp_progress_filename)
 filepath = modwt_path + datestring + exp_name + 'weights-{epoch:02d}.hdf5'
-checkpoint = ModelCheckpoint(filepath, monitor='val_loss', verbose=1, save_best_only=True, mode='min')
+checkpoint = ModelCheckpoint(filepath, monitor='val_loss', verbose=1, save_best_only=False, mode='min')
 callbacks_list = [checkpoint, save_progress]
 
 hist = model.fit(x_train, y_train, epochs=nepochs, callbacks=callbacks_list, batch_size=nbatch, shuffle=True,
