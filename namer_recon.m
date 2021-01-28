@@ -2,20 +2,20 @@
 
 % Example code for the method described in:
 
-% Haskell et al. 2019, "Network Accelerated Motion 
-% Estimation and Reduction (NAMER): Convolutional neural network guided 
+% Haskell et al. 2019, "Network Accelerated Motion
+% Estimation and Reduction (NAMER): Convolutional neural network guided
 % retrospective motion correction using a separable motion model"
 
-% This script performs the separable cost function version of the NAMER 
+% This script performs the separable cost function version of the NAMER
 % method (Eqn 3 in Haskell et al. 2019), and corresponds to the result
 % shown in the bottom left of Figure 4-B in the paper.
 
 
 %% Initialize script, set filenames
 
-NAMER_path = [pwd,'/'];
-addpath(genpath('./funcs_namer'))
-addpath('./namer_data')
+NAMER_path = [pwd,'\'];
+addpath(genpath('.\funcs_namer'))
+addpath('.\namer_data')
 
 exp_name = '_namer_example';
 niters = 20;
@@ -31,16 +31,19 @@ patch_params.patch_stsz = 8;
 create_patches = true;
 patches_full_fn = [NAMER_path, datestr(now,'yy-mm-dd'),'_namer_patches_tmp'];
 
+% init python API
+init_pyAPI;
+
 %% Load channel data, find relevant parameters
 
 % load k-space, sensitivity maps, shot trajectory, undersampling matrix,
 % kspace filter (all ones in this example), and mask of non-zero pixels
 load(data_fn)
 [nlin,ncol,nsli_0,ncha] = size(kdata);
-shots_per_slice = size(tse_traj,1); 
+shots_per_slice = size(tse_traj,1);
 total_shots = shots_per_slice * nsli_0;
 
-% pad data as needed 
+% pad data as needed
 pad = 0; % (non zero for volumes with through-slice motion correction)
 nsli_p = nsli_0 + 2*pad;
 kdata = cat(3, zeros(nlin,ncol,pad,ncha),kdata,zeros(nlin,ncol,pad,ncha));
@@ -64,13 +67,13 @@ dM_z = zeros(numel(dM_in_indices),1);
 
 % create experiment strings
 exp_str = strcat(datestr(now,'yyyy-mm-dd'),exp_name,'_');
-exp_path = exp_str; exp_path(end) = '/';
+exp_path = exp_str; exp_path(end) = '\';
 while exist(exp_path,'dir')
-    exp_path = strcat(exp_path(1:end-1),'i/');
+    exp_path = strcat(exp_path(1:end-1),'i\');
     exp_str = strcat(exp_str(1:end-1),'i_');
 end
 mkdir(exp_path);
-full_path_exp_str = strcat(NAMER_path,'/',exp_path,exp_str);
+full_path_exp_str = strcat(NAMER_path,'\',exp_path,exp_str);
 
 
 %% Find no motion image and motion corrupted image
@@ -109,90 +112,90 @@ fits_full_solve = zeros(niters,1);
 
 disp('  '); disp(strcat(exp_str,'1-',num2str(niters))); disp('  ')
 for ii = 1:niters
-    
+
     disp('  '); disp(strcat(exp_str,num2str(ii))); disp('  ');
     diary(strcat(exp_path,exp_str,num2str(ii)))
-    
+
     %% %%%%%      NAMER step 1: apply CNN   %%%%%%%%%%%%%%%%%%%%%
-    
+
     % reformat data to orientation used with CNN
     x_in = permute(x_current(10:end-9,end:-1:1), [2 1]);
-    
+
     % remove artifacts from image by applying CNN
     [x_cnn] = run_cnn(x_in, create_patches, patches_full_fn, ...
         patch_params, cnn_model_name, cnn_tmp_path, gpu_str);
-    
+
     % reformat back to (PE, RO, SLI, CHA) orientation
     x_cnn2 = permute(x_cnn,[2 1]);
     x_cnn3 = cat(1,zeros(9,448),x_cnn2(:,end:-1:1),zeros(9,448));
-    
+
     % find cmplx scale between ML image and initial motion corrupted image
     cf = fminsearch(@(x) nrm_err(x, x_cnn3, x_corrupted), [1;0]);
     x_cnn_final = x_cnn3 * (cf(1) + 1i * cf(2));
-    
+
     % find data consistency fit after application of CNN
     fit_cnn = mt_fm_v10( dM_z, dM_in_indices, M_current, sens, km, ...
         tse_traj, U ,  nz_pxls, x_cnn_final(:), [], kfilt, pad);
     fits_post_cnn(ii) = fit_cnn;
-    
+
     %% %%%%%      NAMER step 2: motion optimization   %%%%%%%%%%%%%%%%%%%%%
-    
+
     % set convergence options
     mt_opt_options = optimoptions(@fminunc, 'Algorithm','quasi-newton',...
         'Display','off','SpecifyObjectiveGradient',false,...
         'OptimalityTolerance',1e-3,'MaxIterations',10);
-    
+
     % create vars for parallel loop and then run separate minimizations for
     % each shot
     dM_update_vals = cell(total_shots,1);
     x_cnn_rep = repmat(x_cnn_final(:),1,total_shots);
     parfor jj = 1:total_shots
-        
+
         % set indicies of motion to be optimized for shot jj
         dM_in_matrix_tmp = zeros(size(Mz));
         dM_in_matrix_tmp(jj,[1,2,6]) = 1;
         dM_in_indices_tmp = find(dM_in_matrix_tmp);
-        
+
         % run motion optimization for shot jj
         [mt_jst_tmp] = fminunc(@(x)mt_fm_v10( x, dM_in_indices_tmp,...
             M_current, sens, km, tse_traj, U ,  nz_pxls, x_cnn_rep(:,jj), ...
             [], kfilt, pad), zeros(3,1), mt_opt_options);
-        
+
         % save optimization output
         dM_update_vals{jj} = mt_jst_tmp;
-        
+
         % display progress
         disp(['Done optimizing shot: ',num2str(jj)])
     end
-    
+
     % collect motion from each shot into the current estimate of the motion
     for jj = 1:total_shots
         M_current(jj,[1,2,6]) = M_current(jj,[1,2,6]) + dM_update_vals{jj}';
     end
-    
+
     % find fit with new motion (but still CNN image)
     [fit_mt_min] = mt_fit_fcn_v10( dM_z, dM_in_indices, M_current, sens, km, ...
         tse_traj, U, [], nz_pxls, x_cnn_final(:), [], kfilt, pad);
     fits_post_mtmin(ii) = fit_mt_min;
-    
+
     disp('Motion optimization completed. Resolving for volume...')
-    
+
     %% %%%%%    NAMER step 3: full volume solve   %%%%%%%%%%%%%%%%%%%%%
-    
+
     % resolve for the full volume with the new motion estimate
     [ fit_full_solve, x_current, pcg_out] = mt_fit_fcn_v10( dM_z, ...
         dM_in_indices, M_current, sens, km, ...
         tse_traj, U , nz_pxls , nz_pxls, [], [], kfilt, pad);
     fits_full_solve(ii) = fit_full_solve;
-    
+
     disp(['NAMER iteration ',num2str(ii),': fit = ',num2str(fit_full_solve),...
         ' (fit0 = ',num2str(fit_corrupted),')']); disp(' ')
-    
+
     save(strcat(full_path_exp_str,num2str(ii),'.mat'),'fit_cnn',...
         'x_cnn_final','fit_mt_min', 'fit_full_solve','x_current',...
         'M_current')
-    
-    
+
+
 end
 
 %% plot image results and compare to original
@@ -207,12 +210,9 @@ figure(5); plot(mt_traj(:,[1,2,6])); hold on; plot(M_current(:,[1,2,6]),'k--')
 legend('PE mt true','RO mt true','rotation true',...
     'PE mt NAMER','RO mt NAMER','rotation NAMER')
 figure(6); plot(0:niters,[fit_corrupted;fits_full_solve])
-title('data consistency convergence'); 
+title('data consistency convergence');
 xlabel('iteration'); ylabel ('data consistency % fit')
 
 
 %% save final workspace
 save(strcat(full_path_exp_str,'end_wrksp.mat'))
-
-
-
